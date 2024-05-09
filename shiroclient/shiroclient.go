@@ -44,6 +44,7 @@ type requestOptions struct {
 	transient           map[string][]byte
 	target              *interface{}
 	timestampGenerator  func(context.Context) string
+	targetEndpoints     []string
 	mspFilter           []string
 	minEndorsers        int
 	creator             string
@@ -131,6 +132,14 @@ func WithID(id string) Config {
 func WithParams(params interface{}) Config {
 	return opt(func(r *requestOptions) {
 		r.params = params
+	})
+}
+
+// WithTargetEndpoints allows specifying which exact peers will be used
+// to process the transaction. Specify a name or URL of the peer.
+func WithTargetEndpoints(nameOrURL []string) Config {
+	return opt(func(r *requestOptions) {
+		r.targetEndpoints = append([]string(nil), nameOrURL...)
 	})
 }
 
@@ -385,12 +394,11 @@ type HealthCheck interface {
 // service should only be considered operational if its reported status is
 // "UP".  Any other status indicates a potential service interruption.
 //
-// 		for _, report := range healthcheck {
-//			if report.Status != "UP" {
-//				ringAlarm(report)
-//			}
+//	for _, report := range healthcheck {
+//		if report.Status != "UP" {
+//			ringAlarm(report)
 //		}
-//
+//	}
 type HealthCheckReport interface {
 	// Timestamp of when the report was generated (RFC3339).
 	Timestamp() string
@@ -1093,6 +1101,10 @@ func (c *rpcShiroClient) Call(ctx context.Context, method string, configs ...Con
 
 	if opt.creator != "" {
 		req["params"].(map[string]interface{})["creator_msp_id"] = opt.creator
+	}
+
+	if len(opt.TargetEndpoints) > 0 {
+		req["params"].(map[string]interface{})["target_endpoints"] = opt.TargetEndpoints
 	}
 
 	res, err := c.reqres(req, opt)
